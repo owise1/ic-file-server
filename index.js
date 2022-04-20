@@ -22,7 +22,11 @@ app.use(fileUpload({
 app.use(cors())
 app.use(bodyParser.json())
 app.use(bodyParser.urlencoded({ extended: true }))
-app.use(serveStatic(FILE_DIR))
+app.use(serveStatic(FILE_DIR, {
+  setHeaders: (res, path) => {
+    res.setHeader('Content-Type', 'text/ic')
+  }
+}))
 
 app.post('/ic', async (req, res) => {
   try {

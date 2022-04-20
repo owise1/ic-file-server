@@ -3,6 +3,9 @@
   "version": "0.0.1",
   "description": "basic file server for .ic files",
   "main": "index.js",
+  "engines": {
+    "node": "~16"
+  },
   "scripts": {
     "start": "node index.js",
     "watch": "nodemon index.js",

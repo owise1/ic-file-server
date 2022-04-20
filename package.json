@@ -1,7 +1,7 @@
 {
-  "name": "file-server",
-  "version": "1.0.0",
-  "description": "",
+  "name": "ic-file-server",
+  "version": "0.0.1",
+  "description": "basic file server for .ic files",
   "main": "index.js",
   "scripts": {
     "start": "node index.js",

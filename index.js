@@ -3,6 +3,7 @@ const raw = require('multiformats/codecs/raw')
 const { sha256 } = require('multiformats/hashes/sha2')
 const { TextEncoder } = require('util')
 const fs = require('fs/promises')
+const fsReg = require('fs')
 const express = require('express')
 const serveStatic = require('serve-static')
 const fileUpload = require('express-fileupload')
@@ -27,6 +28,47 @@ app.use(serveStatic(FILE_DIR, {
     res.setHeader('Content-Type', 'text/ic')
   }
 }))
+
+const listDir = async (req, res, pth = '') => {
+  let exists
+  const host = req.headers.host
+  if (pth && !pth.startsWith('/')) {
+    pth = '/' + pth
+  }
+  const dir = FILE_DIR + pth 
+  try {
+    exists = await fs.stat(dir + '/index.ic')
+  } catch (e) {
+
+  }
+  if (exists) {
+    return fsReg.createReadStream(dir + '/index.ic').pipe(res)
+    
+  } else {
+    const files = await fs.readdir(dir)
+    const icLines = []
+    icLines.push(host + pth)
+    files.forEach(async file => {
+      //CID.asCID(file.replace('.ic', ''))
+      icLines.push(`+${host}${pth}/${file}`)
+    })
+    res.setHeader('Content-Type', 'text/ic')
+    res.send(icLines.join("\n"))
+  }
+
+}
+
+const userIndex = async (req, res) => {
+  const { params } = req
+  await listDir(req, res, params.username)
+}
+app.get('/:username', userIndex)
+app.get('/:username/index.ic', userIndex)
+
+const serverIndex = async (req, res) => {
+  await listDir(req, res)
+}
+app.get('/', serverIndex)
 
 app.post('/:username', async (req, res) => {
   try {

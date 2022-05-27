@@ -4,7 +4,7 @@
 
 ### how to get files in there
 
-POST to `/ic`
-multipart formdata where the key is your "username" and the value is the file. the file will be renamed into a CID and returned
+POST to `/:username`
+multipart formdata with any key and where the value is the file. the file will be renamed into a CID and returned
 
-(optionally) include another key that matches the original filename of the file and it's value will be used to create a symlink to the file
+(optionally) include a file name for the file (extension .ic) and it will be used to create a symlink to the file

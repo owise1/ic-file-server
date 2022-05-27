@@ -28,28 +28,30 @@ app.use(serveStatic(FILE_DIR, {
   }
 }))
 
-app.post('/ic', async (req, res) => {
+app.post('/:username', async (req, res) => {
   try {
     if (req.files) {
+      const { params } = req
       const files = await Promise.all(values(mapObjIndexed(async (file, key) => {
-        const ret = []
+        const ret = {}
         const str = await fs.readFile(file.tempFilePath, 'utf8')
         const bytes = new TextEncoder('utf8').encode(str) 
         const hash = await sha256.digest(bytes)
         const cid = CID.create(1, raw.code, hash)
-        const filePath = `${key}/${cid.toString()}.ic`
-        ret.push(filePath)
+        const filePath = `${params.username}/${cid.toString()}.ic`
+        ret.cid = cid.toString()
+        ret.static = filePath
         await file.mv(FILE_DIR + '/' + filePath)
         // they also want a symlink
-        if (req.body[file.name]) {
-          const symlink = `${key}/${req.body[file.name]}` 
+        if (file.name && /\.ic$/.test(file.name)) {
+          const symlink = `${params.username}/${file.name}` 
           try{
             await fs.unlink(`${FILE_DIR}/${symlink}`)
           } catch (e) {
             // do nothing
           }
           await fs.symlink(__dirname + '/' + FILE_DIR + '/' + filePath, `${FILE_DIR}/${symlink}`)
-          ret.push(symlink)
+          ret.dynamic = symlink
         }
         return ret 
       }, req.files)))
@@ -65,7 +67,7 @@ app.post('/ic', async (req, res) => {
 })
 
 // start app
-const port = process.env.PORT || 3000
+const port = process.env.PORT || 3002
 
 app.listen(port, () =>
   console.log(`App is listening on port ${port}.`)

@@ -50,7 +50,7 @@ const listDir = async (req, res, pth = '') => {
     icLines.push(host + pth)
     files.forEach(async file => {
       //CID.asCID(file.replace('.ic', ''))
-      icLines.push(`+${host}${pth}/${file}`)
+      icLines.push(`+http://${host}${pth}/${file}`)
     })
     res.setHeader('Content-Type', 'text/ic')
     res.send(icLines.join("\n"))
@@ -58,17 +58,20 @@ const listDir = async (req, res, pth = '') => {
 
 }
 
+const serverIndex = async (req, res) => {
+  await listDir(req, res)
+}
+app.get('/', serverIndex)
+app.get('/index.ic', serverIndex)
+
 const userIndex = async (req, res) => {
   const { params } = req
+  if (/[^A-Za-z0-9]+/.test(params.username)) return res.sendStatus(404)
   await listDir(req, res, params.username)
 }
 app.get('/:username', userIndex)
 app.get('/:username/index.ic', userIndex)
 
-const serverIndex = async (req, res) => {
-  await listDir(req, res)
-}
-app.get('/', serverIndex)
 
 app.post('/:username', async (req, res) => {
   try {

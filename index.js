@@ -51,7 +51,7 @@ const listDir = async (req, res, pth = '') => {
     icLines.push(host + pth)
     files.forEach(async file => {
       //CID.asCID(file.replace('.ic', ''))
-      icLines.push(`+http://${host}${pth}/${file}`)
+      icLines.push(`+http://${host}${pth}/${file}/index.ic`)
     })
     res.setHeader('Content-Type', 'text/ic')
     res.send(icLines.join("\n"))

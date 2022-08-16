@@ -12,7 +12,15 @@ const bodyParser = require('body-parser')
 const { mapObjIndexed, pipe, flatten, values } = require('ramda')
 
 const FILE_DIR = 'ic'
-
+// create directory if it doesnt exist
+const createDir = async (dir) => {
+  if (!fsReg.existsSync(dir)){
+    await fs.mkdir(dir)
+  }
+}
+;(async () => {
+  createDir(FILE_DIR)
+})()
 
 const app = express()
 app.use(fileUpload({
@@ -115,6 +123,7 @@ app.post('/:username', async (req, res) => {
       const cid = CID.create(1, raw.code, hash)
       const filePath = `/${params.username}/${cid.toString()}.ic`
       const indexPath = `/${params.username}/index.ic` 
+      await createDir(FILE_DIR + '/' + params.username)
       await fs.writeFile(FILE_DIR + filePath, str)
       await fs.writeFile(FILE_DIR + indexPath, str)
       res.send({

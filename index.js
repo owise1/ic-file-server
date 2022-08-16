@@ -22,6 +22,7 @@ app.use(fileUpload({
 }))
 app.use(cors())
 app.use(bodyParser.json())
+app.use(bodyParser.text({ type: 'text/ic' }))
 app.use(bodyParser.urlencoded({ extended: true }))
 app.use(serveStatic(FILE_DIR, {
   setHeaders: (res, path) => {
@@ -74,9 +75,10 @@ app.get('/:username/index.ic', userIndex)
 
 
 app.post('/:username', async (req, res) => {
+  const { params } = req
   try {
+    // uploading files
     if (req.files) {
-      const { params } = req
       const files = await Promise.all(values(mapObjIndexed(async (file, key) => {
         const ret = {}
         const str = await fs.readFile(file.tempFilePath, 'utf8')
@@ -104,6 +106,24 @@ app.post('/:username', async (req, res) => {
       res.send({
         ok: true,
         files: flatten(files)
+      })
+    // uploading text
+    } else if (req.body) {
+      const str = req.body
+      const bytes = new TextEncoder('utf8').encode(str) 
+      const hash = await sha256.digest(bytes)
+      const cid = CID.create(1, raw.code, hash)
+      const filePath = `/${params.username}/${cid.toString()}.ic`
+      const indexPath = `/${params.username}/index.ic` 
+      await fs.writeFile(FILE_DIR + filePath, str)
+      await fs.writeFile(FILE_DIR + indexPath, str)
+      res.send({
+        ok: true,
+        files: [{
+          cid: cid.toString(),
+          static: filePath,
+          dynamic: indexPath
+        }]
       })
     }
   } catch (err) {

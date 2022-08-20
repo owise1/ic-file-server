@@ -10,6 +10,7 @@ const fileUpload = require('express-fileupload')
 const cors = require('cors')
 const bodyParser = require('body-parser')
 const { mapObjIndexed, pipe, flatten, values } = require('ramda')
+const { ethers } = require('ethers')
 
 const FILE_DIR = 'ic'
 // create directory if it doesnt exist
@@ -53,7 +54,7 @@ const listDir = async (req, res, pth = '') => {
   if (exists) {
     return fsReg.createReadStream(dir + '/index.ic').pipe(res)
     
-  } else {
+  } else if (pth === '') {
     const files = await fs.readdir(dir)
     const icLines = []
     icLines.push(host + pth)
@@ -63,6 +64,8 @@ const listDir = async (req, res, pth = '') => {
     })
     res.setHeader('Content-Type', 'text/ic')
     res.send(icLines.join("\n"))
+  } else {
+    res.sendStatus(404)
   }
 
 }
@@ -78,10 +81,32 @@ const userIndex = async (req, res) => {
   if (/[^A-Za-z0-9]+/.test(params.username)) return res.sendStatus(404)
   await listDir(req, res, params.username)
 }
+const NONCE_PREFIX = 'Your random nonce: '
+const nonces = {}
+app.use('/:username', async (req, res, next) => {
+  if (!['POST', 'PUT'].includes(req.method)) {
+    return next()
+  }
+  const fail = () => {
+    res.sendStatus(401)
+  }
+  const signedNonce = req.headers['x-ic-nonce']
+  if (!signedNonce) return fail()
+  const message = NONCE_PREFIX + nonces[req.params.username]
+  const verified = await ethers.utils.verifyMessage(message, signedNonce)
+  if (verified !== req.params.username) return fail()
+  next()
+})
+app.get('/:username/_nonce', async (req, res) => {
+  const { username } = req.params
+  if (!nonces[username]) {
+    nonces[username] = Math.floor(Math.random() * 1000000)
+  }
+  res.send(NONCE_PREFIX + nonces[username].toString())
+})
+
 app.get('/:username', userIndex)
 app.get('/:username/index.ic', userIndex)
-
-
 app.post('/:username', async (req, res) => {
   const { params } = req
   try {

@@ -1,3 +1,4 @@
+require('dotenv').config()
 const { CID } = require('multiformats/cid')
 const raw = require('multiformats/codecs/raw')
 const { sha256 } = require('multiformats/hashes/sha2')
@@ -84,7 +85,7 @@ const userIndex = async (req, res) => {
 const NONCE_PREFIX = 'Your random nonce: '
 const nonces = {}
 app.use('/:username', async (req, res, next) => {
-  if (!['POST', 'PUT'].includes(req.method)) {
+  if (!['POST', 'PUT'].includes(req.method) || process.env.PARTY_MODE === 'true') {
     return next()
   }
   const fail = () => {
@@ -111,8 +112,8 @@ app.get('/:username/index.ic', userIndex)
 app.post('/:username', async (req, res) => {
   const { params } = req
   try {
-    // uploading files
-    if (req.files) {
+    // uploading files - disabled for now 8.20.22
+    if (req.files && false) {
       const files = await Promise.all(values(mapObjIndexed(async (file, key) => {
         const ret = {}
         const str = await fs.readFile(file.tempFilePath, 'utf8')

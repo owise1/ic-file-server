@@ -95,6 +95,7 @@ app.use('/:username', async (req, res, next) => {
   const message = NONCE_PREFIX + nonces[req.params.username]
   const verified = await ethers.utils.verifyMessage(message, signedNonce)
   if (verified !== req.params.username) return fail()
+  delete nonces[req.params.username]
   next()
 })
 app.get('/:username/_nonce', async (req, res) => {

@@ -36,8 +36,21 @@ class BasicFS {
     return fsReg.createReadStream(this._path(pth))
   }
 
+  async readFile (pth) {
+    try{
+      const ret = await fs.readFile(this._path(pth), 'utf8')
+      return ret
+    } catch (e) {
+      return null
+    }
+  }
+
   async readDir (pth) {
     return fs.readdir(this._path(pth))
+  }
+
+  async unlink (pth) {
+    return fs.unlink(this._path(pth))
   }
 
   async writeFile (pth, str) {

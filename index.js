@@ -69,18 +69,22 @@ app.use('/:username', async (req, res, next) => {
   }
   const signedNonce = req.headers['x-ic-nonce']
   if (!signedNonce) return fail()
-  const message = NONCE_PREFIX + nonces[req.params.username]
+  const storedNonce = await fileSystem.readFile(`${req.params.username}/_nonce`)
+  if (!storedNonce) return fail()
+  const message = NONCE_PREFIX + storedNonce 
   const verified = await ethers.utils.verifyMessage(message, signedNonce)
   if (verified !== req.params.username) return fail()
-  delete nonces[req.params.username]
+  await fileSystem.unlink(`${req.params.username}/_nonce`)
   next()
 })
 app.get('/:username/_nonce', async (req, res) => {
   const { username } = req.params
-  if (!nonces[username]) {
-    nonces[username] = Math.floor(Math.random() * 1000000)
+  let userNonce = await fileSystem.readFile(`/${username}/_nonce`)
+  if (!userNonce) {
+    userNonce = Math.floor(Math.random() * 1000000)
+    await fileSystem.writeFile(`/${username}/_nonce`, userNonce.toString())
   }
-  res.send(NONCE_PREFIX + nonces[username].toString())
+  res.send(NONCE_PREFIX + userNonce)
 })
 
 app.get('/:username', userIndex)
@@ -117,6 +121,6 @@ const port = process.env.PORT || 3002
 app.listen(port, () => {
   console.log(`App is listening on port ${port}.`)
   if (process.env.PARTY_MODE === 'true') {
-    console.log('IT IS PARTY!1! 🕺🏻💃🏽');
+    console.log('🍾 IT IS PARTY!1! 🕺🏻💃🏽');
   }
 })

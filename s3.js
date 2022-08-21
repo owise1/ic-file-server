@@ -2,13 +2,16 @@ const AWS = require('aws-sdk')
 const { uniq } = require('ramda')
 
 const checkEnvs = () => {
-  let ok = true
+  let ok = 0 
   ;['AWS_ACCESS_KEY_ID', 'AWS_SECRET_ACCESS_KEY', 'AWS_REGION', 'AWS_BUCKET'].forEach(key => {
-    if (!process.env[key]) {
-      ok = false
+    if (process.env[key]) {
+      ok++ 
     }
   })
-  return ok
+  if (ok > 0 && ok < 4) {
+    console.log('⚠️ Missing AWS environment variables')
+  }
+  return ok === 4
 }
 
 class S3FileSystem {
@@ -79,6 +82,19 @@ class S3FileSystem {
       Key: this._path(pth),
       Body: Buffer.from(str, 'utf-8')
     }).promise()
+  }
+
+  async unlink (pth) {
+    return this.s3.deleteObject({ Bucket: this.bucket, Key: this._path(pth) }).promise()
+  }
+
+  async readFile (pth) {
+    try {
+      const res = await this.s3.getObject({ Bucket: this.bucket, Key: this._path(pth) }).promise()
+      return res.Body.toString('utf-8')
+    } catch (e) {
+      return null
+    }
   }
 
 }

@@ -3,8 +3,6 @@ const { CID } = require('multiformats/cid')
 const raw = require('multiformats/codecs/raw')
 const { sha256 } = require('multiformats/hashes/sha2')
 const { TextEncoder } = require('util')
-const fs = require('fs/promises')
-const fsReg = require('fs')
 const express = require('express')
 const serveStatic = require('serve-static')
 const fileUpload = require('express-fileupload')
@@ -16,14 +14,6 @@ const BasicFS = require('./basic-fs')
 
 const fileSystem = new BasicFS()
 
-const FILE_DIR = 'ic'
-// create directory if it doesnt exist
-const createDir = async (dir) => {
-  if (!fsReg.existsSync(dir)){
-    await fs.mkdir(dir)
-  }
-}
-
 const app = express()
 app.use(fileUpload({
   createParentPath: true,
@@ -34,11 +24,6 @@ app.use(cors())
 app.use(bodyParser.json())
 app.use(bodyParser.text({ type: 'text/ic' }))
 app.use(bodyParser.urlencoded({ extended: true }))
-app.use(serveStatic(FILE_DIR, {
-  setHeaders: (res, path) => {
-    res.setHeader('Content-Type', 'text/ic')
-  }
-}))
 
 const listDir = async (req, res, pth = '') => {
   const host = req.headers.host
@@ -102,38 +87,7 @@ app.get('/:username/index.ic', userIndex)
 app.post('/:username', async (req, res) => {
   const { params } = req
   try {
-    // uploading files - disabled for now 8.20.22
-    if (req.files && false) {
-      const files = await Promise.all(values(mapObjIndexed(async (file, key) => {
-        const ret = {}
-        const str = await fs.readFile(file.tempFilePath, 'utf8')
-        const bytes = new TextEncoder('utf8').encode(str) 
-        const hash = await sha256.digest(bytes)
-        const cid = CID.create(1, raw.code, hash)
-        const filePath = `${params.username}/${cid.toString()}.ic`
-        ret.cid = cid.toString()
-        ret.static = filePath
-        await file.mv(FILE_DIR + '/' + filePath)
-        // they also want a symlink
-        if (file.name && /\.ic$/.test(file.name)) {
-          const symlink = `${params.username}/${file.name}` 
-          try{
-            await fs.unlink(`${FILE_DIR}/${symlink}`)
-          } catch (e) {
-            // do nothing
-          }
-          await fs.symlink(__dirname + '/' + FILE_DIR + '/' + filePath, `${FILE_DIR}/${symlink}`)
-          ret.dynamic = symlink
-        }
-        return ret 
-      }, req.files)))
-      //send response
-      res.send({
-        ok: true,
-        files: flatten(files)
-      })
-    // uploading text
-    } else if (req.body) {
+    if (req.body) {
       const str = req.body
       const bytes = new TextEncoder('utf8').encode(str) 
       const hash = await sha256.digest(bytes)

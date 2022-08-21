@@ -14,8 +14,7 @@
   "author": "@owise1",
   "license": "ISC",
   "dependencies": {
-    "@aws-sdk/client-s3": "^3.154.0",
-    "@aws-sdk/lib-storage": "^3.154.0",
+    "aws-sdk": "^2.1199.0",
     "body-parser": "^1.20.0",
     "cors": "^2.8.5",
     "dotenv": "^16.0.1",

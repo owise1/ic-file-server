@@ -4,10 +4,8 @@ const path = require('path')
 
 const FILE_DIR = 'ic'
 
-// create directory if it doesnt exist
-
 class BasicFS {
-  __constructor() {
+  constructor() {
     ;(async () => {
       this.createDir(FILE_DIR)
     })()

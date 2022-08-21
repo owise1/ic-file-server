@@ -11,8 +11,9 @@ const bodyParser = require('body-parser')
 const { mapObjIndexed, pipe, flatten, values } = require('ramda')
 const { ethers } = require('ethers')
 const BasicFS = require('./basic-fs')
+const S3FileSystem = require('./s3')
 
-const fileSystem = new BasicFS()
+const fileSystem = S3FileSystem.factory() || new BasicFS()
 
 const app = express()
 app.use(fileUpload({

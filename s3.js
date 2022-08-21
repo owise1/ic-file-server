@@ -102,6 +102,7 @@ class S3FileSystem {
 // looks for env vars and returns a file system
 S3FileSystem.factory = function() {
   if (!checkEnvs()) return null
+  console.log(`📦 Using S3 file system: ${process.env.AWS_BUCKET} (${process.env.AWS_REGION})`)
   return new S3FileSystem()
 }
 

@@ -48,7 +48,7 @@ const serverIndex = async (req, res) => {
     join("\n")
   )(icLines)
   if (process.env.ADMIN) {
-    ret += `\n${host} admin\n${process.env.ADMIN}`
+    ret += `\n${host} admin\n+${process.env.ADMIN}`
   }
   res.send(ret)
 }

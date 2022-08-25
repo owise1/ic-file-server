@@ -11,6 +11,7 @@
 ## ENV vars
 ```
 PARTY_MODE=false // if true anyone can add file to any user (i.e. no auth)
+ADMIN= // 0x.... address of admin
 
 // If all of the following are present we'll use s3 instead of local file system
 AWS_ACCESS_KEY_ID=

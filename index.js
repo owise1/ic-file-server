@@ -8,7 +8,7 @@ const serveStatic = require('serve-static')
 const fileUpload = require('express-fileupload')
 const cors = require('cors')
 const bodyParser = require('body-parser')
-const { mapObjIndexed, pipe, flatten, values } = require('ramda')
+const { map, join, mapObjIndexed, pipe, flatten, values } = require('ramda')
 const { ethers } = require('ethers')
 const BasicFS = require('./basic-fs')
 const S3FileSystem = require('./s3')
@@ -27,28 +27,30 @@ app.use(bodyParser.text({ type: 'text/ic' }))
 app.use(bodyParser.urlencoded({ extended: true }))
 
 const listDir = async (req, res, pth = '') => {
-  const host = req.headers.host
   if (await fileSystem.exists(pth + '/index.ic')) {
     return fileSystem.createReadStream(pth + '/index.ic').pipe(res)
-    
-  } else if (pth === '') {
-    const files = await fileSystem.readDir(pth)
-    const icLines = []
-    icLines.push(host + pth)
-    files.forEach(async file => {
-      //CID.asCID(file.replace('.ic', ''))
-      icLines.push(`+http://${host}${pth}/${file}/index.ic`)
-    })
-    res.setHeader('Content-Type', 'text/ic')
-    res.send(icLines.join("\n"))
   } else {
     res.sendStatus(404)
   }
-
 }
 
 const serverIndex = async (req, res) => {
-  await listDir(req, res)
+  const host = req.headers.host
+  const files = await fileSystem.readDir()
+  const icLines = []
+  icLines.push(host)
+  files.forEach(async file => {
+    //CID.asCID(file.replace('.ic', ''))
+    icLines.push(`+http://${host}/${file}/index.ic`)
+  })
+  res.setHeader('Content-Type', 'text/ic')
+  let ret = pipe(
+    join("\n")
+  )(icLines)
+  if (process.env.ADMIN) {
+    ret += `\n${host} admin\n${process.env.ADMIN}`
+  }
+  res.send(ret)
 }
 app.get('/', serverIndex)
 app.get('/index.ic', serverIndex)

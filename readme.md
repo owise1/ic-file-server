@@ -4,9 +4,12 @@
 
 ### how to get files in there
 
-1. GET `/:username/_nonce`
+1. `GET` `/:username/_nonce`
 2. Sign the returned nonce like [this](https://docs.ethers.io/v5/getting-started/#getting-started--signing)
-3. POST to `/:username`. body should be text of ic file. Use the custom header `x-ic-nonce` in the request for the signed nonce
+3. `POST` to `/:username`. body should be text of ic file. Use the custom header `x-ic-nonce` in the request for the signed nonce
+
+### append to file 
+1. same as above only use `PATCH`
 
 ## ENV vars
 ```

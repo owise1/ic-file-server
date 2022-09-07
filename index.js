@@ -63,7 +63,7 @@ const userIndex = async (req, res) => {
 const NONCE_PREFIX = 'Your random nonce: '
 const nonces = {}
 app.use('/:username', async (req, res, next) => {
-  if (!['POST', 'PUT'].includes(req.method) || process.env.PARTY_MODE === 'true') {
+  if (!['POST', 'PATCH'].includes(req.method) || process.env.PARTY_MODE === 'true') {
     return next()
   }
   const fail = () => {
@@ -91,25 +91,48 @@ app.get('/:username/_nonce', async (req, res) => {
 
 app.get('/:username', userIndex)
 app.get('/:username/index.ic', userIndex)
+
+const writeUserFiles = async (req, str) => {
+  const { params } = req
+  const bytes = new TextEncoder('utf8').encode(str) 
+  const hash = await sha256.digest(bytes)
+  const cid = CID.create(1, raw.code, hash)
+  const filePath = `/${params.username}/${cid.toString()}.ic`
+  const indexPath = `/${params.username}/index.ic` 
+  await fileSystem.writeFile(filePath, str)
+  await fileSystem.writeFile(indexPath, str)
+  return [{
+    cid: cid.toString(),
+    static: filePath,
+    dynamic: indexPath
+  }]
+}
+
+
 app.post('/:username', async (req, res) => {
   const { params } = req
   try {
     if (req.body) {
-      const str = req.body
-      const bytes = new TextEncoder('utf8').encode(str) 
-      const hash = await sha256.digest(bytes)
-      const cid = CID.create(1, raw.code, hash)
-      const filePath = `/${params.username}/${cid.toString()}.ic`
-      const indexPath = `/${params.username}/index.ic` 
-      await fileSystem.writeFile(filePath, str)
-      await fileSystem.writeFile(indexPath, str)
+      const files = await writeUserFiles(req, req.body)
       res.send({
         ok: true,
-        files: [{
-          cid: cid.toString(),
-          static: filePath,
-          dynamic: indexPath
-        }]
+        files
+      })
+    }
+  } catch (err) {
+    res.status(500).send(err)
+  }
+})
+app.patch('/:username', async (req, res) => {
+  const { params } = req
+  try {
+    if (req.body) {
+      const existingFile = await fileSystem.readFile(`/${params.username}/index.ic`)
+      const str = `${existingFile}\n${req.body}`
+      const files = await writeUserFiles(req, str)
+      res.send({
+        ok: true,
+        files
       })
     }
   } catch (err) {

@@ -20,7 +20,7 @@ class BasicFS {
 
   async createDir (dir) {
     if (!fsReg.existsSync(dir)){
-      await fs.mkdir(dir)
+      await fs.mkdir(dir, { recursive: true })
     }
   }
 

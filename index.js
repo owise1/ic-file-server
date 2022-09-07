@@ -87,12 +87,13 @@ app.use('/:username', async (req, res, next) => {
   }
   const signedNonce = req.headers['x-ic-nonce']
   if (!signedNonce) return fail()
-  const storedNonce = await fileSystem.readFile(_path(req, `${req.params.username}/_nonce`))
+  const storedNonce = await fileSystem.readFile(_path(req, `/${req.params.username}/_nonce`))
+  console.log(storedNonce)
   if (!storedNonce) return fail()
   const message = NONCE_PREFIX + storedNonce 
   const verified = await ethers.utils.verifyMessage(message, signedNonce)
   if (verified !== req.params.username) return fail()
-  await fileSystem.unlink(_path(req, `${req.params.username}/_nonce`))
+  await fileSystem.unlink(_path(req, `/${req.params.username}/_nonce`))
   next()
 })
 app.get('/:username/_nonce', async (req, res) => {

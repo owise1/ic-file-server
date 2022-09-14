@@ -88,7 +88,6 @@ app.use('/:username', async (req, res, next) => {
   const signedNonce = req.headers['x-ic-nonce']
   if (!signedNonce) return fail()
   const storedNonce = await fileSystem.readFile(_path(req, `/${req.params.username}/_nonce`))
-  console.log(storedNonce)
   if (!storedNonce) return fail()
   const message = NONCE_PREFIX + storedNonce 
   const verified = await ethers.utils.verifyMessage(message, signedNonce)
@@ -130,7 +129,7 @@ app.patch('/:username', async (req, res) => {
   try {
     if (req.body) {
       const existingFile = await fileSystem.readFile(_path(req, `/${params.username}/index.ic`))
-      const str = `${existingFile}\n${req.body}`
+      const str = `${existingFile ? existingFile + '\n' : ''}${req.body}`
       const files = await writeUserFiles(req, str)
       res.send({
         ok: true,

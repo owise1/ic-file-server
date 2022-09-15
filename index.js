@@ -33,7 +33,7 @@ const serverIndex = async (req, res) => {
   icLines.push(host)
   files.forEach(async file => {
     //CID.asCID(file.replace('.ic', ''))
-    icLines.push(`+http://${host}/${file}/index.ic`)
+    icLines.push(`+https://${host}/${file}/index.ic`)
   })
   res.setHeader('Content-Type', 'text/ic')
   let ret = pipe(

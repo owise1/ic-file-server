@@ -28,7 +28,7 @@ app.use(bodyParser.urlencoded({ extended: true }))
 
 const serverIndex = async (req, res) => {
   const host = req.headers.host
-  const files = await fileSystem.readDir(_path(req))
+  const files = await fileSystem.readDir(_path(req, '/'))
   const icLines = []
   icLines.push(host)
   files.forEach(async file => {

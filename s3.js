@@ -62,10 +62,10 @@ class S3FileSystem {
   }
 
   // fetches all users 
-  async readDir (pth) {
+  async readDir (pth = '') {
     if (!this._allUsers) {
-      const res = await this.listAllObjectsFromS3Bucket(this.bucket, '')
-      this._allUsers = uniq(res.map(c => c.split('/')[0]))
+      const res = await this.listAllObjectsFromS3Bucket(this.bucket, this._path(pth))
+      this._allUsers = uniq(res.map(c => c.replace(this._path(pth), '').split('/')[0]))
     }
     return this._allUsers
   }

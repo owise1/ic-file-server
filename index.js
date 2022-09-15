@@ -5,6 +5,7 @@ const { sha256 } = require('multiformats/hashes/sha2')
 const { TextEncoder } = require('util')
 const express = require('express')
 const serveStatic = require('serve-static')
+const compression = require('compression')
 const fileUpload = require('express-fileupload')
 const cors = require('cors')
 const bodyParser = require('body-parser')
@@ -16,6 +17,7 @@ const S3FileSystem = require('./s3')
 const fileSystem = S3FileSystem.factory() || new BasicFS()
 
 const app = express()
+app.use(compression())
 app.use(fileUpload({
   createParentPath: true,
   useTempFiles: true,

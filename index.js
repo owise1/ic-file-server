@@ -9,10 +9,11 @@ const compression = require('compression')
 const fileUpload = require('express-fileupload')
 const cors = require('cors')
 const bodyParser = require('body-parser')
-const { curry, map, join, mapObjIndexed, pipe, flatten, values } = require('ramda')
+const { curry, map, join, mapObjIndexed, pipe, flatten, values, filter } = require('ramda')
 const { ethers } = require('ethers')
 const BasicFS = require('./basic-fs')
 const S3FileSystem = require('./s3')
+const IC = require('ic-js')
 
 const fileSystem = S3FileSystem.factory() || new BasicFS()
 
@@ -38,12 +39,23 @@ const serverIndex = async (req, res) => {
     icLines.push(`+https://${host}/${file}/index.ic`)
   })
   res.setHeader('Content-Type', 'text/ic')
-  let ret = pipe(
+  let ret = ''
+  const admin = process.env.ADMIN
+  if (admin) {
+    ret += `${host} admin\n+${admin}`
+    // admin has a file
+    if (files.includes(admin)) {
+      const adminIc = await fileSystem.readFile(_path(req, `/${admin}/index.ic`))
+      console.log(adminIc)
+      const ic = new IC
+      await ic.import(adminIc)
+      const newIc = ic.seed(['icfs']) 
+      ret += `\n${newIc.export().replace(/^_\n/, `_${admin}\n`)}\n_\n`
+    }
+  }
+  ret += pipe(
     join("\n")
   )(icLines)
-  if (process.env.ADMIN) {
-    ret += `\n${host} admin\n+${process.env.ADMIN}`
-  }
   res.send(ret)
 }
 

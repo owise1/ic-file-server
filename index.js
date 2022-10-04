@@ -42,7 +42,7 @@ const serverIndex = async (req, res) => {
   let ret = ''
   const admin = process.env.ADMIN
   if (admin) {
-    ret += `${host} admin\n+${admin}`
+    ret += `${host} admin\n+${admin}\n`
     // admin has a file
     if (files.includes(admin)) {
       const adminIc = await fileSystem.readFile(_path(req, `/${admin}/index.ic`))

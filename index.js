@@ -46,7 +46,6 @@ const serverIndex = async (req, res) => {
     // admin has a file
     if (files.includes(admin)) {
       const adminIc = await fileSystem.readFile(_path(req, `/${admin}/index.ic`))
-      console.log(adminIc)
       const ic = new IC
       await ic.import(adminIc)
       const newIc = ic.seed(['icfs']) 
@@ -87,6 +86,7 @@ const writeUserFiles = async (req, str) => {
 
 const _path = curry((req, pth) => {
   const host = req.headers.host || 'no-host'
+  console.log('host', host)
   return `/${host}${pth}`
 })
 

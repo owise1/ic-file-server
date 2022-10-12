@@ -29,6 +29,11 @@ app.use(bodyParser.json())
 app.use(bodyParser.text({ type: 'text/ic' }))
 app.use(bodyParser.urlencoded({ extended: true }))
 
+const _path = curry((req, pth) => {
+  const host = req.headers.host || 'no-host'
+  return `/${host}${pth}`
+})
+
 const serverIndex = async (req, res) => {
   const host = req.headers.host
   const files = await fileSystem.readDir(_path(req, '/'))
@@ -84,11 +89,6 @@ const writeUserFiles = async (req, str) => {
   }]
 }
 
-const _path = curry((req, pth) => {
-  const host = req.headers.host || 'no-host'
-  console.log('host', host)
-  return `/${host}${pth}`
-})
 
 const NONCE_PREFIX = 'Your random nonce: '
 const nonces = {}

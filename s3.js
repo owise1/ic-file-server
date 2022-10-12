@@ -21,6 +21,7 @@ class S3FileSystem {
     }
     this.s3 = new AWS.S3()
     this.bucket = process.env.AWS_BUCKET
+    this._allUsers = {}
   }
   _path (pth) {
     if (pth && pth.startsWith('/')) {
@@ -63,19 +64,19 @@ class S3FileSystem {
 
   // fetches all users 
   async readDir (pth = '') {
-    if (!this._allUsers) {
+    const host = this._path(pth).split('/')[0]
+    if (!this._allUsers[host]) {
       const res = await this.listAllObjectsFromS3Bucket(this.bucket, this._path(pth))
-      this._allUsers = uniq(res.map(c => c.replace(this._path(pth), '').split('/')[0]))
+      this._allUsers[host] = uniq(res.map(c => c.replace(this._path(pth), '').split('/')[0]))
     }
-    return this._allUsers
+    return this._allUsers[host]
   }
 
   async writeFile (pth, str) {
     // check if user exists in listing
-    const users = await this.readDir()
-    const username = pth.split('/')[0]
-    if (!users.includes(username)) {
-      this._allUsers = null
+    const pieces = this._path(pth).split('/')
+    if (this._allUsers[pieces[0]] && !this._allUsers[pieces[0]].includes(pieces[1])) {
+      this._allUsers[pieces[0]] = null
     }
     return this.s3.upload({
       Bucket: this.bucket,

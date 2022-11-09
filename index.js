@@ -9,11 +9,13 @@ const compression = require('compression')
 const fileUpload = require('express-fileupload')
 const cors = require('cors')
 const bodyParser = require('body-parser')
-const { curry, map, join, mapObjIndexed, pipe, flatten, values, filter } = require('ramda')
+const { curry, map, join, mapObjIndexed, pipe, flatten, values, filter, path } = require('ramda')
 const { ethers } = require('ethers')
 const BasicFS = require('./basic-fs')
 const S3FileSystem = require('./s3')
 const IC = require('ic-js')
+const jwt = require('jsonwebtoken')
+const { expressjwt } = require("express-jwt")
 
 const fileSystem = S3FileSystem.factory() || new BasicFS()
 
@@ -26,8 +28,16 @@ app.use(fileUpload({
 }))
 app.use(cors())
 app.use(bodyParser.json())
-app.use(bodyParser.text({ type: 'text/ic' }))
+app.use(bodyParser.text())
 app.use(bodyParser.urlencoded({ extended: true }))
+
+let JWT_SECRET = process.env.JWT_SECRET
+if (!JWT_SECRET) {
+  console.log('🔒⚠️ You did not provide a JWT_SECRET. One is being generated for you. That means you will have to reauthenticate every time you restart the server.')
+  JWT_SECRET = ethers.utils.randomBytes(32)
+}
+
+app.use(expressjwt({ secret: JWT_SECRET, algorithms: ['HS256'] }))
 
 const _path = curry((req, pth) => {
   const host = req.headers.host || 'no-host'
@@ -91,7 +101,19 @@ const writeUserFiles = async (req, str) => {
 
 
 const NONCE_PREFIX = 'Your random nonce: '
-const nonces = {}
+
+const verifyNonce = async (req, signedNonce) => {
+  const { username } = req.params
+  if (!signedNonce) return
+  const storedNonce = await fileSystem.readFile(_path(req, `/${username}/_nonce`))
+  if (!storedNonce) return
+  const message = NONCE_PREFIX + storedNonce 
+  const verified = await ethers.utils.verifyMessage(message, signedNonce)
+  console.log(verified)
+  if (verified !== username) return
+  await fileSystem.unlink(_path(req, `/${username}/_nonce`))
+  return true
+}
 app.use('/:username', async (req, res, next) => {
   if (!['POST', 'PATCH'].includes(req.method) || process.env.PARTY_MODE === 'true') {
     return next()
@@ -99,15 +121,12 @@ app.use('/:username', async (req, res, next) => {
   const fail = () => {
     res.sendStatus(401)
   }
-  const signedNonce = req.headers['x-ic-nonce']
-  if (!signedNonce) return fail()
-  const storedNonce = await fileSystem.readFile(_path(req, `/${req.params.username}/_nonce`))
-  if (!storedNonce) return fail()
-  const message = NONCE_PREFIX + storedNonce 
-  const verified = await ethers.utils.verifyMessage(message, signedNonce)
-  if (verified !== req.params.username) return fail()
-  await fileSystem.unlink(_path(req, `/${req.params.username}/_nonce`))
-  next()
+  const { username } = req.params
+  if (req.path === '/_jwt' || path(['auth', 'username'], req) === username || (await verifyNonce(req, req.headers['x-ic-nonce']))) {
+    next()
+  } else {
+    fail()
+  }
 })
 app.get('/:username/_nonce', async (req, res) => {
   const { username } = req.params
@@ -117,6 +136,15 @@ app.get('/:username/_nonce', async (req, res) => {
     await fileSystem.writeFile(_path(req, `/${username}/_nonce`), userNonce.toString())
   }
   res.send(NONCE_PREFIX + userNonce)
+})
+app.post('/:username/_jwt', async (req, res) => {
+  if (await verifyNonce(req, req.body)) {
+    const { username } = req.params
+    const token = jwt.sign({ username }, JWT_SECRET)
+    res.send(token)
+  } else {
+    res.sendStatus(401)
+  }
 })
 
 app.get('/', serverIndex)

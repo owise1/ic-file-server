@@ -37,7 +37,11 @@ if (!JWT_SECRET) {
   JWT_SECRET = ethers.utils.randomBytes(32)
 }
 
-app.use(expressjwt({ secret: JWT_SECRET, algorithms: ['HS256'] }))
+app.use(expressjwt({ 
+  secret: JWT_SECRET, 
+  algorithms: ['HS256'],
+  credentialsRequired: false
+}))
 
 const _path = curry((req, pth) => {
   const host = req.headers.host || 'no-host'

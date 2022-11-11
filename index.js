@@ -43,14 +43,16 @@ app.use(expressjwt({
   credentialsRequired: false
 }))
 
-const _path = curry((req, pth) => {
+app.use((req, res, next) => {
   const host = req.headers.host || 'no-host'
-  return `/${host}${pth}`
+  req.filePrefix = `/${host}`
+  next()
 })
+
 
 const serverIndex = async (req, res) => {
   const host = req.headers.host
-  const files = await fileSystem.readDir(_path(req, '/'))
+  const files = await fileSystem.readDir(req.filePrefix + '/')
   const icLines = []
   icLines.push(host)
   files.forEach(async file => {
@@ -64,7 +66,7 @@ const serverIndex = async (req, res) => {
     ret += `${host} admin\n+${admin}\n`
     // admin has a file
     if (files.includes(admin)) {
-      const adminIc = await fileSystem.readFile(_path(req, `/${admin}/index.ic`))
+      const adminIc = await fileSystem.readFile(req.filePrefix + `/${admin}/index.ic`)
       const ic = new IC
       await ic.import(adminIc)
       const newIc = ic.seed(['icfs']) 
@@ -80,8 +82,8 @@ const serverIndex = async (req, res) => {
 const userIndex = async (req, res) => {
   const { params } = req
   if (/[^A-Za-z0-9]+/.test(params.username)) return res.sendStatus(404)
-  if (await fileSystem.exists(_path(req, `/${params.username}/index.ic`))) {
-    return fileSystem.createReadStream(_path(req, `/${params.username}/index.ic`)).pipe(res)
+  if (await fileSystem.exists(req.filePrefix + `/${params.username}/index.ic`)) {
+    return fileSystem.createReadStream(req.filePrefix + `/${params.username}/index.ic`).pipe(res)
   } else {
     res.sendStatus(404)
   }
@@ -94,8 +96,8 @@ const writeUserFiles = async (req, str) => {
   const cid = CID.create(1, raw.code, hash)
   const filePath = `/${params.username}/${cid.toString()}.ic`
   const indexPath = `/${params.username}/index.ic` 
-  await fileSystem.writeFile(_path(req, filePath), str)
-  await fileSystem.writeFile(_path(req, indexPath), str)
+  await fileSystem.writeFile(req.filePrefix + filePath, str)
+  await fileSystem.writeFile(req.filePrefix + indexPath, str)
   return [{
     cid: cid.toString(),
     static: filePath,
@@ -109,13 +111,13 @@ const NONCE_PREFIX = 'Your random nonce: '
 const verifyNonce = async (req, signedNonce) => {
   const { username } = req.params
   if (!signedNonce) return
-  const storedNonce = await fileSystem.readFile(_path(req, `/${username}/_nonce`))
+  const storedNonce = await fileSystem.readFile(req.filePrefix + `/${username}/_nonce`)
   if (!storedNonce) return
   const message = NONCE_PREFIX + storedNonce 
   const verified = await ethers.utils.verifyMessage(message, signedNonce)
   console.log(verified)
   if (verified !== username) return
-  await fileSystem.unlink(_path(req, `/${username}/_nonce`))
+  await fileSystem.unlink(req.filePrefix + `/${username}/_nonce`)
   return true
 }
 app.use('/:username', async (req, res, next) => {
@@ -134,10 +136,10 @@ app.use('/:username', async (req, res, next) => {
 })
 app.get('/:username/_nonce', async (req, res) => {
   const { username } = req.params
-  let userNonce = await fileSystem.readFile(_path(req, `/${username}/_nonce`))
+  let userNonce = await fileSystem.readFile(req.filePrefix + `/${username}/_nonce`)
   if (!userNonce) {
     userNonce = Math.floor(Math.random() * 1000000)
-    await fileSystem.writeFile(_path(req, `/${username}/_nonce`), userNonce.toString())
+    await fileSystem.writeFile(req.filePrefix + `/${username}/_nonce`, userNonce.toString())
   }
   res.send(NONCE_PREFIX + userNonce)
 })
@@ -174,7 +176,7 @@ app.patch('/:username', async (req, res) => {
   const { params } = req
   try {
     if (req.body) {
-      const existingFile = await fileSystem.readFile(_path(req, `/${params.username}/index.ic`))
+      const existingFile = await fileSystem.readFile(req.filePrefix + `/${params.username}/index.ic`)
       const str = `${existingFile ? existingFile + '\n' : ''}${req.body}`
       const files = await writeUserFiles(req, str)
       res.send({

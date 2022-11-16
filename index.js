@@ -27,8 +27,8 @@ app.use(fileUpload({
   tempFileDir: 'tmp/'
 }))
 app.use(cors())
-app.use(bodyParser.json())
-app.use(bodyParser.text())
+app.use(bodyParser.json({ type: '*/json' }))
+app.use(bodyParser.text({ type: 'text/*' }))
 app.use(bodyParser.urlencoded({ extended: true }))
 
 let JWT_SECRET = process.env.JWT_SECRET
@@ -176,6 +176,7 @@ app.patch('/:username', async (req, res) => {
   const { params } = req
   try {
     if (req.body) {
+      console.log(req.body)
       const existingFile = await fileSystem.readFile(req.filePrefix + `/${params.username}/index.ic`)
       const str = `${existingFile ? existingFile + '\n' : ''}${req.body}`
       const files = await writeUserFiles(req, str)

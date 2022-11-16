@@ -34,7 +34,7 @@ app.use(bodyParser.urlencoded({ extended: true }))
 let JWT_SECRET = process.env.JWT_SECRET
 if (!JWT_SECRET) {
   console.log('🔒⚠️ You did not provide a JWT_SECRET. One is being generated for you. That means you will have to reauthenticate every time you restart the server.')
-  JWT_SECRET = ethers.utils.randomBytes(32)
+  JWT_SECRET = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15) 
 }
 
 app.use(expressjwt({ 

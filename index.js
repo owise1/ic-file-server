@@ -80,10 +80,24 @@ const serverIndex = async (req, res) => {
 }
 
 const userIndex = async (req, res) => {
-  const { params } = req
+  const { params, query } = req
   if (/[^A-Za-z0-9]+/.test(params.username)) return res.sendStatus(404)
-  if (await fileSystem.exists(req.filePrefix + `/${params.username}/index.ic`)) {
-    return fileSystem.createReadStream(req.filePrefix + `/${params.username}/index.ic`).pipe(res)
+  const fileName = req.filePrefix + `/${params.username}/index.ic` 
+  if (await fileSystem.exists(fileName)) {
+    if (query && query.seed) {
+      const ic = new IC
+      const icFile = await fileSystem.readFile(fileName)
+      await ic.import(icFile)
+      const seedIc = ic.seed(query.seed.split("\n").map(s => s.trim()))
+      return res.send(seedIc.export())
+    } else if (query && query.findTagged) {
+      const ic = new IC
+      const icFile = await fileSystem.readFile(fileName)
+      await ic.import(icFile)
+      return res.send(ic.findTagged(query.findTagged.split("\n").map(s => s.trim())).join("\n"))
+    } else {
+      return fileSystem.createReadStream(fileName).pipe(res)
+    }
   } else {
     res.sendStatus(404)
   }

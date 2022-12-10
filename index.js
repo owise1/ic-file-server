@@ -67,10 +67,12 @@ const serverIndex = async (req, res) => {
     // admin has a file
     if (files.includes(admin)) {
       const adminIc = await fileSystem.readFile(req.filePrefix + `/${admin}/index.ic`)
-      const ic = new IC
-      await ic.import(adminIc)
-      const newIc = ic.seed(['icfs']) 
-      ret += `\n${newIc.export().replace(/^_\n/, `_${admin}\n`)}\n_\n`
+      if (adminIc) {
+        const ic = new IC
+        await ic.import(adminIc)
+        const newIc = ic.seed(['icfs']) 
+        ret += `\n${newIc.export().replace(/^_\n/, `_${admin}\n`)}\n_\n`
+      }
     }
   }
   ret += pipe(
@@ -87,13 +89,13 @@ const userIndex = async (req, res) => {
     if (query && query.seed) {
       const ic = new IC
       const icFile = await fileSystem.readFile(fileName)
-      await ic.import(icFile)
+      await ic.import(icFile || '')
       const seedIc = ic.seed(query.seed.split("\n").map(s => s.trim()))
       return res.send(seedIc.export())
     } else if (query && query.findTagged) {
       const ic = new IC
       const icFile = await fileSystem.readFile(fileName)
-      await ic.import(icFile)
+      await ic.import(icFile || '')
       return res.send(ic.findTagged(query.findTagged.split("\n").map(s => s.trim())).join("\n"))
     } else {
       return fileSystem.createReadStream(fileName).pipe(res)

@@ -160,9 +160,10 @@ app.get('/:username/_nonce', async (req, res) => {
   res.send(NONCE_PREFIX + userNonce)
 })
 app.post('/:username/_jwt', async (req, res) => {
-  if (await verifyNonce(req, req.body)) {
+  const nonce = path(['body', 'nonce'], req) || req.body
+  if (await verifyNonce(req, nonce)) {
     const { username } = req.params
-    const token = jwt.sign({ username }, JWT_SECRET)
+    const token = jwt.sign(Object.assign({ username }, req.body.data), JWT_SECRET)
     res.send(token)
   } else {
     res.sendStatus(401)
@@ -189,10 +190,18 @@ app.post('/:username', async (req, res) => {
   }
 })
 app.patch('/:username', async (req, res) => {
-  const { params } = req
+  const { params, auth } = req
+  const { tags } = auth
   try {
     if (req.body) {
-      console.log(req.body)
+      // verify that they can write to this tag
+      if (tags) {
+        const ic = new IC
+        await ic.import(req.body)
+        const allowedTags = tags.split('\n').map(IC.clean)
+        const badTags = ic.all().filter(t => !allowedTags.includes(t.to))
+        if (badTags.length) return res.status(401).send('Unauthorized')
+      }
       const existingFile = await fileSystem.readFile(req.filePrefix + `/${params.username}/index.ic`)
       const str = `${existingFile ? existingFile + '\n' : ''}${req.body}`
       const files = await writeUserFiles(req, str)

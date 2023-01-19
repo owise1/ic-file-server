@@ -23,7 +23,7 @@ yes.aye.si admin
 +0xE11E29773B60049AaBA3576aE29F1b7290A09Dd2
 ```
 
-One special property of this user is that whatever .ic resides at `yes.aye.si/0xE11E29773B60049AaBA3576aE29F1b7290A09Dd2/index.ic` will also be included in the server index. This allows the admin to add useful context to the server. For example, the NooDu client uses the first thot tagged `icfs` and `name` as the server name.
+One special property of this user is that anything tagged `icfs` at `yes.aye.si/0xE11E29773B60049AaBA3576aE29F1b7290A09Dd2/index.ic` will also be included in the server index. This allows the admin to add useful context to the server. For example, my NooDu client uses the first thot tagged `icfs` and `name` as the server name.
 
 # User index
 
@@ -43,6 +43,17 @@ Right now anyone can add a file to the server, *but* they have to prove who they
 1. `GET` `/:username/_nonce` where `:username` is your public key
 2. Sign the returned nonce like [this](https://docs.ethers.io/v5/getting-started/#getting-started--signing)
 3. Put the signed nonce in the body of a `POST` to `/:username/_jwt`. You'll get a jwt
+	1. the signed nonce can be the entire post body or, if you want more info included in your jwt..
+	2. you can send a json object like 
+    ```
+    { 
+      "nonce": "SINGED_NONCE",
+      "data": {
+        "exp": 1674143282872,
+        "tags": "parent tags that are allowed\nnewline separated"
+      }
+    }
+    ```
 4. Use that jwt for `POST` and `PATCH` in the header `Authorization: Bearer {JWT}`
 
 

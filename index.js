@@ -196,7 +196,7 @@ app.patch('/:username', async (req, res) => {
     if (req.body) {
       // verify that they can write to this tag
       if (tags) {
-        const ic = new IC
+        const ic = new IC({ importDepth: 1 })
         await ic.import(req.body)
         const allowedTags = tags.split('\n').map(IC.clean)
         const badTags = ic.all().filter(t => !allowedTags.includes(t.to))

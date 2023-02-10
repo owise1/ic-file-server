@@ -27,7 +27,7 @@ One special property of this user is that anything tagged `icfs` at `yes.aye.si/
 
 # User index
 
-Issuing a `GET` request to a user like `/:username` or `/:username.ic` will return the user's entire .ic
+Issuing a `GET` request to a user like `/:username` or `/:username/index.ic` will return the user's entire .ic
 
 ### IC methods
 
@@ -35,6 +35,8 @@ Right now two IC methods are honored via `GET`: `seed`, and `findTagged`. These 
 
 * Seeding - `/:username/?seed=tag one%0Atag two` will return a valid .ic
 * findTagged - `/:username/?findTagged=tag one%0Atag two` will return a newline delimited list of thots
+
+`findTagged` also works server-wide like `/?findTagged=tag one%0Atag two`
 
 # Authorization
 

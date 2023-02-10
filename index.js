@@ -49,36 +49,60 @@ app.use((req, res, next) => {
   next()
 })
 
+// VERY basic cacheing of server index.ic
+// this is not meant to scale
+const serverIcs = {}
+const serverIc = async (filePrefix) => {
+  if (serverIcs[filePrefix]) return serverIcs[filePrefix]
+  const files = await fileSystem.readDir(filePrefix + '/')
+  const allFiles = await Promise.all(files.map(file => fileSystem.readFile(`${filePrefix}/${file}/index.ic`)))
+  const icStr = allFiles.map(ic => {
+    if (ic.startsWith('_\n')) return ic
+    return `_\n${ic}`
+  }).join('\n')
+  const ic = new IC
+  ic.created = Date.now()
+  await ic.import(icStr)
+  serverIcs[filePrefix] = ic
+  return ic
+}
+
 
 const serverIndex = async (req, res) => {
   const host = req.headers.host
-  const files = await fileSystem.readDir(req.filePrefix + '/')
-  const icLines = []
-  icLines.push(host)
-  files.forEach(async file => {
-    //CID.asCID(file.replace('.ic', ''))
-    icLines.push(`+https://${host}/${file}/index.ic`)
-  })
-  res.setHeader('Content-Type', 'text/ic')
-  let ret = ''
-  const admin = process.env.ADMIN
-  if (admin) {
-    ret += `${host} admin\n+${admin}\n`
-    // admin has a file
-    if (files.includes(admin)) {
-      const adminIc = await fileSystem.readFile(req.filePrefix + `/${admin}/index.ic`)
-      if (adminIc) {
-        const ic = new IC
-        await ic.import(adminIc)
-        const newIc = ic.seed(['icfs']) 
-        ret += `\n${newIc.export().replace(/^_\n/, `_${admin}\n`)}\n_\n`
+  const { params, query } = req
+  if (query && query.findTagged) {
+    const ic = await serverIc(req.filePrefix)
+    return res.send(ic.findTagged(query.findTagged.split("\n").map(s => s.trim())).join("\n"))
+
+  } else {
+    const files = await fileSystem.readDir(req.filePrefix + '/')
+    const icLines = []
+    icLines.push(host)
+    files.forEach(file => {
+      icLines.push(`+https://${host}/${file}/index.ic`)
+    })
+    res.setHeader('Content-Type', 'text/ic')
+    let ret = ''
+    const admin = process.env.ADMIN
+    if (admin) {
+      ret += `${host} admin\n+${admin}\n`
+      // admin has a file
+      if (files.includes(admin)) {
+        const adminIc = await fileSystem.readFile(req.filePrefix + `/${admin}/index.ic`)
+        if (adminIc) {
+          const ic = new IC
+          await ic.import(adminIc)
+          const newIc = ic.seed(['icfs']) 
+          ret += `\n${newIc.export().replace(/^_\n/, `_${admin}\n`)}\n_\n`
+        }
       }
     }
+    ret += pipe(
+      join("\n")
+    )(icLines)
+    res.send(ret)
   }
-  ret += pipe(
-    join("\n")
-  )(icLines)
-  res.send(ret)
 }
 
 const userIndex = async (req, res) => {
@@ -112,6 +136,7 @@ const writeUserFiles = async (req, str) => {
   const cid = CID.create(1, raw.code, hash)
   const filePath = `/${params.username}/${cid.toString()}.ic`
   const indexPath = `/${params.username}/index.ic` 
+  delete serverIcs[req.filePrefix]
   await fileSystem.writeFile(req.filePrefix + filePath, str)
   await fileSystem.writeFile(req.filePrefix + indexPath, str)
   return [{

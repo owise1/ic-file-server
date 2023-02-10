@@ -56,10 +56,13 @@ const serverIc = async (filePrefix) => {
   if (serverIcs[filePrefix]) return serverIcs[filePrefix]
   const files = await fileSystem.readDir(filePrefix + '/')
   const allFiles = await Promise.all(files.map(file => fileSystem.readFile(`${filePrefix}/${file}/index.ic`)))
-  const icStr = allFiles.map(ic => {
-    if (ic.startsWith('_\n')) return ic
-    return `_\n${ic}`
-  }).join('\n')
+  const icStr = allFiles
+    .filter(Boolean)
+    .map(ic => {
+      if ((ic || '').startsWith('_\n')) return ic
+      return `_\n${ic}`
+    })
+    .join('\n')
   const ic = new IC
   ic.created = Date.now()
   await ic.import(icStr)

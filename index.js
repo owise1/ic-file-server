@@ -55,13 +55,16 @@ const serverIcs = {}
 const serverIc = async (filePrefix) => {
   if (serverIcs[filePrefix]) return serverIcs[filePrefix]
   const files = await fileSystem.readDir(filePrefix + '/')
-  const allFiles = await Promise.all(files.map(file => fileSystem.readFile(`${filePrefix}/${file}/index.ic`)))
+  const allFiles = await Promise.all(files.map(file => {
+    return fileSystem.readFile(`${filePrefix}/${file}/index.ic`)
+      .then(str => {
+        if (!str) return null
+        if (str.startsWith('_\n')) return str.replace(/^_/, `_${file}`)
+        return `_${file}\n${str}`
+      })
+  }))
   const icStr = allFiles
     .filter(Boolean)
-    .map(ic => {
-      if ((ic || '').startsWith('_\n')) return ic
-      return `_\n${ic}`
-    })
     .join('\n')
   const ic = new IC
   ic.created = Date.now()
@@ -76,7 +79,8 @@ const serverIndex = async (req, res) => {
   const { params, query } = req
   if (query && query.findTagged) {
     const ic = await serverIc(req.filePrefix)
-    return res.send(ic.findTagged(query.findTagged.split("\n").map(s => s.trim())).join("\n"))
+    const tagged = ic.findTagged(query.findTagged.split("\n").map(s => s.trim()), { ic: true})
+    return res.send(tagged.export())
 
   } else {
     const files = await fileSystem.readDir(req.filePrefix + '/')

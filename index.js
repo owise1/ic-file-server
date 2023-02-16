@@ -79,8 +79,15 @@ const serverIndex = async (req, res) => {
   const { params, query } = req
   if (query && query.findTagged) {
     const ic = await serverIc(req.filePrefix)
-    const tagged = ic.findTagged(query.findTagged.split("\n").map(s => s.trim()), { ic: true})
+    const tagged = ic.findTagged(query.findTagged.split("\n").map(s => s.trim()), { ic: true })
     return res.send(tagged.export())
+  } else if (query && query.seed) {
+    const ic = await serverIc(req.filePrefix)
+    const opts = {}
+    if (query.depth) {
+      opts.depth = parseInt(query.depth)
+    }
+    return res.send(ic.seed(query.seed.split("\n").map(s => s.trim()), opts).export())
 
   } else {
     const files = await fileSystem.readDir(req.filePrefix + '/')

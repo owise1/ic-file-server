@@ -23,20 +23,25 @@ yes.aye.si admin
 +0xE11E29773B60049AaBA3576aE29F1b7290A09Dd2
 ```
 
-One special property of this user is that anything tagged `icfs` at `yes.aye.si/0xE11E29773B60049AaBA3576aE29F1b7290A09Dd2/index.ic` will also be included in the server index. This allows the admin to add useful context to the server. For example, my NooDu client uses the first thot tagged `icfs` and `name` as the server name.
+One special property of this user is that anything tagged `icfs` at `yes.aye.si/{ADMIN}/index.ic` will also be included in the server index. This allows the admin to add useful context to the server. For example, my NooDu client uses the first thot tagged `icfs` and `name` as the server name.
+
+
+Additionally, there is the [ENV var](#env-vars) `ADMIN_HOME`. This is the (sub)domain where the admin's master .ic file resides. This file can be used for server-wide settings. Right now it's used to greenlist subdomains. So if the env var `ADMIN_HOME` exists, *and* a .ic file resides at `{ADMIN_HOME}/{ADMIN}/index.ic`, *and* said .ic file contains domains tagged both `domains` and `icfs` then those will be the only (sub)domains allowed on the server. Otherwise, the only way to control which domains the server controls would be via DNS. 
 
 # User index
 
 Issuing a `GET` request to a user like `/:username` or `/:username/index.ic` will return the user's entire .ic
 
-### IC methods
+# IC methods
 
-Right now two IC methods are honored via `GET`: `seed`, and `findTagged`. These will return the result of calling that method on the user's IC. Use the query string to pass parameters. Both methods take an array of strings and it's important to note that the delimiter is a newline (`%0A`)
+Right now two IC methods are honored via `GET`: `seed`, and `findTagged`. These will return the result of calling that method on the user's IC *or* the entire server. Use the query string to pass parameters. Both methods take an array of strings and it's important to note that the delimiter is a newline (`%0A`)
 
-* Seeding - `/:username/?seed=tag one%0Atag two` will return a valid .ic
-* findTagged - `/:username/?findTagged=tag one%0Atag two` will return a newline delimited list of thots
+* Seeding from a user's .ic - `/:username/?seed=tag one%0Atag two` will return a valid .ic
+* findTagged for a user - `/:username/?findTagged=tag one%0Atag two` will return a newline delimited list of thots
+* Seed from entire server `/?seed=ic`
 
-`findTagged` also works server-wide like `/?findTagged=tag one%0Atag two`
+`seed` also accepts an optional `depth` param for controlling seed depth. ex: `/?seed=ic&depth=1` will return an ic containing everything 1 step from `ic`
+
 
 # Authorization
 
@@ -71,6 +76,7 @@ Right now anyone can add a file to the server, *but* they have to prove who they
 ```
 PARTY_MODE=false // if true anyone can add file to any user (i.e. no auth)
 ADMIN= // 0x.... address of admin
+ADMIN_HOME= // domain that the master admin .ic lives
 
 JWT_SECRET= // if this doesnt exist one will be generated on every restart
 

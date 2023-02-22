@@ -16,8 +16,11 @@ const S3FileSystem = require('./s3')
 const IC = require('ic-js')
 const jwt = require('jsonwebtoken')
 const { expressjwt } = require("express-jwt")
+const { serverIc, clearServerIc } = require('./server-ics')
+const { ADMIN, ADMIN_HOME } = process.env
 
 const fileSystem = S3FileSystem.factory() || new BasicFS()
+const getServerIc = serverIc(fileSystem)
 
 const app = express()
 app.use(compression())
@@ -37,6 +40,15 @@ if (!JWT_SECRET) {
   JWT_SECRET = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15) 
 }
 
+// admin's master ic
+let adminIc
+if (ADMIN && ADMIN_HOME) {
+  getServerIc(ADMIN_HOME)
+    .then(ic => {
+      adminIc = ic
+    })
+}
+
 app.use(expressjwt({ 
   secret: JWT_SECRET, 
   algorithms: ['HS256'],
@@ -45,44 +57,26 @@ app.use(expressjwt({
 
 app.use((req, res, next) => {
   const host = req.headers.host || 'no-host'
+  if (adminIc) {
+    const domains = adminIc.findTagged(['domains', 'icfs'])
+    if (domains.length > 0 && !domains.includes(host) && host !== ADMIN_HOME) {
+      return res.status(401).send('Unauthorized')
+    }
+  }
   req.filePrefix = `/${host}`
   next()
 })
-
-// VERY basic cacheing of server index.ic
-// this is not meant to scale
-const serverIcs = {}
-const serverIc = async (filePrefix) => {
-  if (serverIcs[filePrefix]) return serverIcs[filePrefix]
-  const files = await fileSystem.readDir(filePrefix + '/')
-  const allFiles = await Promise.all(files.map(file => {
-    return fileSystem.readFile(`${filePrefix}/${file}/index.ic`)
-      .then(str => {
-        if (!str) return null
-        if (str.startsWith('_\n')) return str.replace(/^_/, `_${file}`)
-        return `_${file}\n${str}`
-      })
-  }))
-  const icStr = allFiles
-    .filter(Boolean)
-    .join('\n')
-  const ic = new IC
-  ic.created = Date.now()
-  await ic.import(icStr)
-  serverIcs[filePrefix] = ic
-  return ic
-}
 
 
 const serverIndex = async (req, res) => {
   const host = req.headers.host
   const { params, query } = req
   if (query && query.findTagged) {
-    const ic = await serverIc(req.filePrefix)
+    const ic = await getServerIc(req.filePrefix)
     const tagged = ic.findTagged(query.findTagged.split("\n").map(s => s.trim()), { ic: true })
     return res.send(tagged.export())
   } else if (query && query.seed) {
-    const ic = await serverIc(req.filePrefix)
+    const ic = await getServerIc(req.filePrefix)
     const opts = {}
     if (query.depth) {
       opts.depth = parseInt(query.depth)
@@ -98,17 +92,16 @@ const serverIndex = async (req, res) => {
     })
     res.setHeader('Content-Type', 'text/ic')
     let ret = ''
-    const admin = process.env.ADMIN
-    if (admin) {
-      ret += `${host} admin\n+${admin}\n`
-      // admin has a file
-      if (files.includes(admin)) {
-        const adminIc = await fileSystem.readFile(req.filePrefix + `/${admin}/index.ic`)
+    if (ADMIN) {
+      ret += `${host} admin\n+${ADMIN}\n`
+      // ADMIN has a file
+      if (files.includes(ADMIN)) {
+        const adminIc = await fileSystem.readFile(req.filePrefix + `/${ADMIN}/index.ic`)
         if (adminIc) {
           const ic = new IC
           await ic.import(adminIc)
           const newIc = ic.seed(['icfs']) 
-          ret += `\n${newIc.export().replace(/^_\n/, `_${admin}\n`)}\n_\n`
+          ret += `\n${newIc.export().replace(/^_\n/, `_${ADMIN}\n`)}\n_\n`
         }
       }
     }
@@ -128,7 +121,11 @@ const userIndex = async (req, res) => {
       const ic = new IC
       const icFile = await fileSystem.readFile(fileName)
       await ic.import(icFile || '')
-      const seedIc = ic.seed(query.seed.split("\n").map(s => s.trim()))
+      const opts = {}
+      if (query.depth) {
+        opts.depth = parseInt(query.depth)
+      }
+      const seedIc = ic.seed(query.seed.split("\n").map(s => s.trim()), opts)
       return res.send(seedIc.export())
     } else if (query && query.findTagged) {
       const ic = new IC
@@ -150,7 +147,7 @@ const writeUserFiles = async (req, str) => {
   const cid = CID.create(1, raw.code, hash)
   const filePath = `/${params.username}/${cid.toString()}.ic`
   const indexPath = `/${params.username}/index.ic` 
-  delete serverIcs[req.filePrefix]
+  clearServerIc(req.filePrefix)
   await fileSystem.writeFile(req.filePrefix + filePath, str)
   await fileSystem.writeFile(req.filePrefix + indexPath, str)
   return [{

@@ -17,7 +17,7 @@ const IC = require('ic-js')
 const jwt = require('jsonwebtoken')
 const { expressjwt } = require("express-jwt")
 const { serverIc, clearServerIc } = require('./server-ics')
-const { ADMIN, ADMIN_HOME } = process.env
+const { ADMIN, ADMIN_HOME, PARTY_MODE } = process.env
 
 const fileSystem = S3FileSystem.factory() || new BasicFS()
 const getServerIc = serverIc(fileSystem)
@@ -142,17 +142,17 @@ const userIndex = async (req, res) => {
 
 const writeUserFiles = async (req, str) => {
   const { params } = req
-  const bytes = new TextEncoder('utf8').encode(str) 
-  const hash = await sha256.digest(bytes)
-  const cid = CID.create(1, raw.code, hash)
-  const filePath = `/${params.username}/${cid.toString()}.ic`
+  // const bytes = new TextEncoder('utf8').encode(str) 
+  // const hash = await sha256.digest(bytes)
+  // const cid = CID.create(1, raw.code, hash)
+  // const filePath = `/${params.username}/${cid.toString()}.ic`
   const indexPath = `/${params.username}/index.ic` 
   clearServerIc(req.filePrefix)
-  await fileSystem.writeFile(req.filePrefix + filePath, str)
+  // await fileSystem.writeFile(req.filePrefix + filePath, str)
   await fileSystem.writeFile(req.filePrefix + indexPath, str)
   return [{
-    cid: cid.toString(),
-    static: filePath,
+    // cid: cid.toString(),
+    // static: filePath,
     dynamic: indexPath
   }]
 }
@@ -167,13 +167,12 @@ const verifyNonce = async (req, signedNonce) => {
   if (!storedNonce) return
   const message = NONCE_PREFIX + storedNonce 
   const verified = await ethers.utils.verifyMessage(message, signedNonce)
-  console.log(verified)
   if (verified !== username) return
   await fileSystem.unlink(req.filePrefix + `/${username}/_nonce`)
   return true
 }
 app.use('/:username', async (req, res, next) => {
-  if (!['POST', 'PATCH'].includes(req.method) || process.env.PARTY_MODE === 'true') {
+  if (!['POST', 'PATCH'].includes(req.method)) {
     return next()
   }
   const fail = () => {
@@ -181,10 +180,16 @@ app.use('/:username', async (req, res, next) => {
   }
   const { username } = req.params
   if (req.path === '/_jwt' || path(['auth', 'username'], req) === username || (await verifyNonce(req, req.headers['x-ic-nonce']))) {
-    next()
-  } else {
-    fail()
+    if (PARTY_MODE === 'true') {
+      return next()
+    }
+    const ic = await getServerIc(req.filePrefix)
+    const invites = ic.findTagged(['.ic invites'])
+    if (invites.length === 0 || invites.find(i => i === `${req.headers.host}/${username}`)) {
+      return next()
+    }
   }
+  fail()
 })
 app.get('/:username/_nonce', async (req, res) => {
   const { username } = req.params

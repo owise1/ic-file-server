@@ -169,7 +169,7 @@ const verifyNonce = async (req, signedNonce) => {
   const verified = await ethers.utils.verifyMessage(message, signedNonce)
   if (verified !== username) return
   await fileSystem.unlink(req.filePrefix + `/${username}/_nonce`)
-  return true
+  return username 
 }
 app.use('/:username', async (req, res, next) => {
   if (!['POST', 'PATCH'].includes(req.method)) {
@@ -180,7 +180,7 @@ app.use('/:username', async (req, res, next) => {
   }
   const { username } = req.params
   if (req.path === '/_jwt' || path(['auth', 'username'], req) === username || (await verifyNonce(req, req.headers['x-ic-nonce']))) {
-    if (PARTY_MODE === 'true') {
+    if (PARTY_MODE === 'true' || username === ADMIN) {
       return next()
     }
     const ic = await getServerIc(req.filePrefix)
@@ -231,7 +231,7 @@ app.post('/:username', async (req, res) => {
   }
 })
 app.patch('/:username', async (req, res) => {
-  const { params, auth } = req
+  const { params, auth = {} } = req
   const { tags } = auth
   try {
     if (req.body) {

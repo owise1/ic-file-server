@@ -42,11 +42,24 @@ if (!JWT_SECRET) {
 
 // admin's master ic
 let adminIc
-if (ADMIN && ADMIN_HOME) {
-  getServerIc(ADMIN_HOME)
+const uberAdminServiceIc = async () => {
+  if (!ADMIN || !ADMIN_HOME) return
+  clearServerIc(ADMIN_HOME)
+  return getServerIc(ADMIN_HOME)
     .then(ic => {
       adminIc = ic
     })
+}
+uberAdminServiceIc()
+
+const getServerAdmin = host => {
+  if (adminIc) {
+    const admin = adminIc.findTagged(['admin', host])
+    if (admin[0]){
+      return admin[0]
+    }
+  }
+  return ADMIN
 }
 
 app.use(expressjwt({ 
@@ -92,16 +105,17 @@ const serverIndex = async (req, res) => {
     })
     res.setHeader('Content-Type', 'text/ic')
     let ret = ''
-    if (ADMIN) {
-      ret += `${host} admin\n+${ADMIN}\n`
-      // ADMIN has a file
-      if (files.includes(ADMIN)) {
-        const adminIc = await fileSystem.readFile(req.filePrefix + `/${ADMIN}/index.ic`)
+    const serverAdmin = getServerAdmin(host) 
+    if (serverAdmin) {
+      ret += `${host} admin\n+${serverAdmin}\n`
+      // serverAdmin has a file
+      if (files.includes(serverAdmin)) {
+        const adminIc = await fileSystem.readFile(req.filePrefix + `/${serverAdmin}/index.ic`)
         if (adminIc) {
           const ic = new IC
           await ic.import(adminIc)
           const newIc = ic.seed(['icfs']) 
-          ret += `\n${newIc.export().replace(/^_\n/, `_${ADMIN}\n`)}\n_\n`
+          ret += `\n${newIc.export().replace(/^_.*\n/, `_${serverAdmin}\n`)}\n_\n`
         }
       }
     }
@@ -150,6 +164,9 @@ const writeUserFiles = async (req, str) => {
   clearServerIc(req.filePrefix)
   // await fileSystem.writeFile(req.filePrefix + filePath, str)
   await fileSystem.writeFile(req.filePrefix + indexPath, str)
+  if (params.username === ADMIN) {
+    uberAdminServiceIc()
+  }
   return [{
     // cid: cid.toString(),
     // static: filePath,

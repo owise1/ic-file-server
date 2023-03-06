@@ -16,11 +16,11 @@ const S3FileSystem = require('./s3')
 const IC = require('ic-js')
 const jwt = require('jsonwebtoken')
 const { expressjwt } = require("express-jwt")
-const { serverIc, clearServerIc } = require('./server-ics')
+const ServerIcs = require('./server-ics')
 const { ADMIN, ADMIN_HOME, PARTY_MODE } = process.env
 
 const fileSystem = S3FileSystem.factory() || new BasicFS()
-const getServerIc = serverIc(fileSystem)
+const serverIcs = new ServerIcs(fileSystem)
 
 const app = express()
 app.use(compression())
@@ -40,36 +40,15 @@ if (!JWT_SECRET) {
   JWT_SECRET = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15) 
 }
 
-// admin's master ic
-let adminIc
-const uberAdminServiceIc = async () => {
-  if (!ADMIN || !ADMIN_HOME) return
-  clearServerIc(ADMIN_HOME)
-  return getServerIc(ADMIN_HOME)
-    .then(ic => {
-      adminIc = ic
-    })
-}
-uberAdminServiceIc()
-
-const getServerAdmin = host => {
-  if (adminIc) {
-    const admin = adminIc.findTagged(['admin', host])
-    if (admin[0]){
-      return admin[0]
-    }
-  }
-  return ADMIN
-}
-
 app.use(expressjwt({ 
   secret: JWT_SECRET, 
   algorithms: ['HS256'],
   credentialsRequired: false
 }))
 
-app.use((req, res, next) => {
+app.use(async (req, res, next) => {
   const host = req.headers.host || 'no-host'
+  const adminIc = await serverIcs.getServerAdminIc()
   if (adminIc) {
     const domains = adminIc.findTagged(['domains', 'icfs'])
     if (domains.length > 0 && !domains.includes(host) && host !== ADMIN_HOME) {
@@ -85,11 +64,11 @@ const serverIndex = async (req, res) => {
   const host = req.headers.host
   const { params, query } = req
   if (query && query.findTagged) {
-    const ic = await getServerIc(req.filePrefix)
+    const ic = await serverIcs.getServerIc(req.filePrefix)
     const tagged = ic.findTagged(query.findTagged.split("\n").map(s => s.trim()), { ic: true })
     return res.send(tagged.export())
   } else if (query && query.seed) {
-    const ic = await getServerIc(req.filePrefix)
+    const ic = await serverIcs.getServerIc(req.filePrefix)
     const opts = {}
     if (query.depth) {
       opts.depth = parseInt(query.depth)
@@ -105,7 +84,7 @@ const serverIndex = async (req, res) => {
     })
     res.setHeader('Content-Type', 'text/ic')
     let ret = ''
-    const serverAdmin = getServerAdmin(host) 
+    const serverAdmin = await serverIcs.getDomainAdmin(host) 
     if (serverAdmin) {
       ret += `${host} admin\n+${serverAdmin}\n`
       // serverAdmin has a file
@@ -161,12 +140,9 @@ const writeUserFiles = async (req, str) => {
   // const cid = CID.create(1, raw.code, hash)
   // const filePath = `/${params.username}/${cid.toString()}.ic`
   const indexPath = `/${params.username}/index.ic` 
-  clearServerIc(req.filePrefix)
+  serverIcs.clearServerIc(req.filePrefix)
   // await fileSystem.writeFile(req.filePrefix + filePath, str)
   await fileSystem.writeFile(req.filePrefix + indexPath, str)
-  if (params.username === ADMIN) {
-    uberAdminServiceIc()
-  }
   return [{
     // cid: cid.toString(),
     // static: filePath,
@@ -200,7 +176,7 @@ app.use('/:username', async (req, res, next) => {
     if (PARTY_MODE === 'true' || username === ADMIN) {
       return next()
     }
-    const ic = await getServerIc(req.filePrefix)
+    const ic = await serverIcs.getServerIc(req.filePrefix, { importDepth: 1 })
     const invites = ic.findTagged(['.ic invites'])
     if (invites.length === 0 || invites.find(i => i === `${req.headers.host}/${username}`)) {
       return next()

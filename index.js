@@ -64,11 +64,11 @@ const serverIndex = async (req, res) => {
   const host = req.headers.host
   const { params, query } = req
   if (query && query.findTagged) {
-    const ic = await serverIcs.getServerIc(req.filePrefix)
+    const ic = await serverIcs.serverIc(req.filePrefix)
     const tagged = ic.findTagged(query.findTagged.split("\n").map(s => s.trim()), { ic: true })
     return res.send(tagged.export())
   } else if (query && query.seed) {
-    const ic = await serverIcs.getServerIc(req.filePrefix)
+    const ic = await serverIcs.serverIc(req.filePrefix)
     const opts = {}
     if (query.depth) {
       opts.depth = parseInt(query.depth)
@@ -176,7 +176,7 @@ app.use('/:username', async (req, res, next) => {
     if (PARTY_MODE === 'true' || username === ADMIN) {
       return next()
     }
-    const ic = await serverIcs.getServerIc(req.filePrefix, { importDepth: 1 })
+    const ic = await serverIcs.serverIc(req.filePrefix, { importDepth: 1 })
     const invites = ic.findTagged(['.ic invites'])
     if (invites.length === 0 || invites.find(i => i === `${req.headers.host}/${username}`)) {
       return next()

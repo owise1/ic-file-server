@@ -178,7 +178,11 @@ app.use('/:username', async (req, res, next) => {
     }
     const ic = await serverIcs.serverIc(req.filePrefix, { importDepth: 1 })
     const invites = ic.findTagged(['.ic invites'])
-    if (invites.length === 0 || invites.find(i => i === `${req.headers.host}/${username}`)) {
+    const admin = await serverIcs.getDomainAdmin(req.filePrefix.replace('/', '')) 
+    if (invites.length === 0 
+      || invites.find(i => i === `${req.headers.host}/${username}`)
+      || (admin && admin === username)
+    ) {
       return next()
     }
   }
